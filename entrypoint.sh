@@ -6,9 +6,12 @@ set -e
 # Handles Railway PORT binding and graceful startup
 # ==============================================================================
 # Decode base64-encoded helper scripts BEFORE Node.js starts
+mkdir -p /data || true
+echo "[entrypoint] Starting decode of helper scripts..."
 if [ -n "$GIT_SYNC_B64" ]; then
-    printf "%s" "$GIT_SYNC_B64" | base64 -d > /data/git-sync.js
-        chmod 644 /data/git-sync.js
+    printf "%s" "$GIT_SYNC_B64" | base64 -d > /data/git-sync.js || true
+        chmod 644 /data/git-sync.js || true
+    echo "[entrypoint] git-sync.js decoded and chmod'd"
 fi
 if [ -n "$ADMIN_SKILL_B64" ]; then
     mkdir -p /data/.openclaw/state/skills

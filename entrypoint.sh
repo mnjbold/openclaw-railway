@@ -5,6 +5,14 @@ set -e
 # OpenClaw Railway Template - Entrypoint Script
 # Handles Railway PORT binding and graceful startup
 # ==============================================================================
+# Decode base64-encoded helper scripts BEFORE Node.js starts
+if [ -n "$GIT_SYNC_B64" ]; then
+    printf "%s" "$GIT_SYNC_B64" | base64 -d > /data/git-sync.js
+fi
+if [ -n "$ADMIN_SKILL_B64" ]; then
+    mkdir -p /data/.openclaw/state/skills
+    printf "%s" "$ADMIN_SKILL_B64" | base64 -d > /data/.openclaw/state/skills/openclaw-admin.md
+fi
 
 # Railway provides PORT environment variable
 if [ -n "$PORT" ]; then

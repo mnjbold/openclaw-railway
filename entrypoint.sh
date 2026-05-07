@@ -41,7 +41,7 @@ fi
 # into the image with correct ownership — no need to chown them at runtime.
 # Skip node_modules trees (thousands of files) to keep startup fast (<5s).
 if [ "$(id -u)" = "0" ]; then
-    find /data -not -path "*/node_modules/*" -exec chown openclaw:openclaw {} + 2>/dev/null || true
+    find /data -not -path "*/node_modules/*" -exec chown openclaw:openclaw {} + 2>/dev/null || true &
 fi
 
 # Ensure Playwright browser is accessible by openclaw user

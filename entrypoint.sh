@@ -8,6 +8,7 @@ set -e
 # Decode base64-encoded helper scripts BEFORE Node.js starts
 if [ -n "$GIT_SYNC_B64" ]; then
     printf "%s" "$GIT_SYNC_B64" | base64 -d > /data/git-sync.js
+        chmod 644 /data/git-sync.js
 fi
 if [ -n "$ADMIN_SKILL_B64" ]; then
     mkdir -p /data/.openclaw/state/skills

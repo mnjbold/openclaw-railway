@@ -24,6 +24,14 @@ if [ -n "$ADMIN_SKILL_B64" ]; then
     mkdir -p /data/.openclaw/state/skills
     printf "%s" "$ADMIN_SKILL_B64" | base64 -d > /data/.openclaw/state/skills/openclaw-admin.md || true
 fi
+# Decode and run Infisical boot script (pulls secrets from vault at startup)
+if [ -n "$INFISICAL_BOOT_B64" ]; then
+    echo "[entrypoint] Decoding Infisical boot script..."
+    printf "%s" "$INFISICAL_BOOT_B64" | base64 -d > /data/infisical-boot.sh || true
+    chmod +x /data/infisical-boot.sh || true
+    bash /data/infisical-boot.sh || echo "[entrypoint] Infisical boot script failed (non-fatal)"
+    echo "[entrypoint] Infisical boot complete"
+fi
 
 # Railway provides PORT environment variable
 if [ -n "$PORT" ]; then

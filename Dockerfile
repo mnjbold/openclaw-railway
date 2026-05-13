@@ -23,6 +23,22 @@ RUN npm install --omit=dev
 COPY src/ ./src/
 
 # ==============================================================================
+# Stage 1b: Build OpenCLAW OS plugin (workspace dashboard UI)
+# https://github.com/thesysdev/openclaw-os
+# ==============================================================================
+FROM node:24-bookworm-slim AS openclaw-os-builder
+
+ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0
+RUN corepack enable && corepack prepare pnpm@latest --activate
+RUN npx -y degit thesysdev/openclaw-os /build/openclaw-os
+WORKDIR /build/openclaw-os
+RUN pnpm install --no-frozen-lockfile
+WORKDIR /build/openclaw-os/packages/claw-plugin
+RUN pnpm bundle-ui && pnpm build
+# Remove node_modules (pnpm symlinks trip OpenClaw's plugin scanner)
+RUN find /build/openclaw-os -type d -name node_modules -prune -exec rm -rf {} + 2>/dev/null; exit 0
+
+# ==============================================================================
 # Stage 2: Production runtime
 # ==============================================================================
 FROM node:24-bookworm-slim AS runtime
@@ -124,6 +140,9 @@ RUN chmod +x /entrypoint.sh
 
 # Copy pre-bundled skills (Railway-optimized)
 COPY skills/ /bundled-skills/
+
+# Copy pre-built OpenCLAW OS dashboard plugin
+COPY --from=openclaw-os-builder /build/openclaw-os/packages/claw-plugin /bundled-plugins/openclaw-os
 
 # Create data directory with proper permissions
 RUN mkdir -p /data/.openclaw /data/workspace && \

@@ -73,6 +73,50 @@ ln -sfn /data/.npm /home/openclaw/.npm
 chown -h openclaw:openclaw /home/openclaw/.openclaw /home/openclaw/.local /home/openclaw/.npm 2>/dev/null || true
 chown openclaw:openclaw /data/.local /data/.npm 2>/dev/null || true
 
+# ------------------------------------------------------------------------------
+# Install OpenCLAW OS dashboard plugin from bundled image artifacts
+# https://github.com/thesysdev/openclaw-os
+# Plugin is pre-built in Docker image Stage 1b, copied to /bundled-plugins/openclaw-os
+# Registered with OpenCLAW on first boot, persisted to /data volume
+# ------------------------------------------------------------------------------
+PLUGIN_SRC="/bundled-plugins/openclaw-os"
+PLUGIN_DST="$OPENCLAW_STATE_DIR/openui/openclaw-os/packages/claw-plugin"
+if [ -d "$PLUGIN_SRC/dist" ] && [ -d "$PLUGIN_SRC/static" ]; then
+    if [ ! -f "$PLUGIN_DST/dist/index.js" ]; then
+        echo "[entrypoint] Installing OpenCLAW OS dashboard plugin..."
+        mkdir -p "$(dirname "$PLUGIN_DST")"
+        cp -r "$PLUGIN_SRC" "$PLUGIN_DST"
+        chown -R openclaw:openclaw "$OPENCLAW_STATE_DIR/openui" 2>/dev/null || true
+
+        # Register plugin with OpenCLAW CLI if config exists
+        if [ -f "$OPENCLAW_STATE_DIR/openclaw.json" ]; then
+            openclaw plugins install "$PLUGIN_DST" --force 2>&1 || \
+                echo "[entrypoint] Plugin CLI registration deferred to gateway start"
+
+            # Ensure plugin tools are accessible (patch tools.alsoAllow if restrictive profile)
+            node -e "
+              const fs = require('fs'), f = process.argv[1];
+              try {
+                const c = JSON.parse(fs.readFileSync(f, 'utf8'));
+                const p = c.tools && c.tools.profile || '';
+                const a = c.tools && c.tools.alsoAllow || [];
+                if (p && p !== 'full' && !a.includes('group:plugins')) {
+                  c.tools = c.tools || {};
+                  c.tools.alsoAllow = a.concat(['group:plugins']);
+                  fs.writeFileSync(f, JSON.stringify(c, null, 2));
+                  console.log('[entrypoint] Added group:plugins to tools.alsoAllow');
+                }
+              } catch(e) { /* config parse error, skip */ }
+            " "$OPENCLAW_STATE_DIR/openclaw.json" 2>/dev/null || true
+        fi
+        echo "[entrypoint] OpenCLAW OS dashboard plugin installed"
+    else
+        echo "[entrypoint] OpenCLAW OS dashboard plugin already installed"
+    fi
+else
+    echo "[entrypoint] OpenCLAW OS plugin not bundled in image, skipping"
+fi
+
 # Log startup info
 echo ""
 echo "OpenClaw Railway Template"
@@ -85,6 +129,11 @@ if [ -d "/ms-playwright" ] && [ -n "$(ls /ms-playwright 2>/dev/null)" ]; then
     echo "Browser: Chromium (Playwright) available"
 else
     echo "Browser: Not available"
+fi
+if [ -f "$PLUGIN_DST/dist/index.js" ]; then
+    echo "OpenCLAW OS: installed (dashboard at /plugins/openclawos)"
+else
+    echo "OpenCLAW OS: not installed"
 fi
 echo ""
 
@@ -145,7 +194,7 @@ echo ""
 
         if ! cat > "$temp_bin" <<'EOF'
 #!/bin/bash
-PREFIX_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/..\" && pwd)"
+PREFIX_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 exec node "$PREFIX_DIR/lib/node_modules/openclaw/dist/entry.js" "$@"
 EOF
         then
